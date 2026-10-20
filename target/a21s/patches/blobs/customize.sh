@@ -39,6 +39,9 @@ LOG_STEP_OUT
 # Radio FM jni blob
 ADD_TO_WORK_DIR "a14nsxx" "system" "system/lib64/libfmradio_jni.so" 0 0 644 "u:object_r:system_lib_file:s0"
 
+# VlsMesDetector blobs
+ADD_TO_WORK_DIR "$SOURCE_FIRMWARE" "vendor" "etc/VslMesDetector"
+
 LOG_STEP_IN "- Adding 32-bit WFD blobs"
 BLOBS_LIST="
 system/bin/insthk
