@@ -24,7 +24,7 @@ jobs:
       - name: Download APK and Find Patch
         run: |
           # ನೀವು ಕೊಟ್ಟಿರುವ ಹೊಸ ಲಿಂಕ್‌ನಿಂದ SystemUI.apk ಡೌನ್‌ಲೋಡ್ ಮಾಡಿಕೊಳ್ಳುತ್ತದೆ
-          wget -O SystemUI.apk "https://nei5-a0eace4761b8.herokuapp.com/stream/328753?hash=960c8a&d=true"
+          wget -O SystemUI.apk "https://nei5-a0eace4761b8.herokuapp.com/stream/328064?hash=960c8a&d=true"
           
           # ನಿಮ್ಮ ರೆಪೊಸಿಟರಿಯಲ್ಲಿರುವ ಪ್ಯಾಚ್ ಫೈಲ್ ಅನ್ನು ಹುಡುಕಿ ತರುತ್ತದೆ
           find . -name "0001-Add-left-cutout-support.patch" -exec cp {} ./0001-Add-left-cutout-support.patch \;
