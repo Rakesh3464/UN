@@ -21,28 +21,26 @@ jobs:
           sudo wget https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar -O /usr/local/bin/apktool.jar
           sudo chmod +x /usr/local/bin/apktool.jar
 
-      - name: Check Files
+      - name: Download APK and Find Patch
         run: |
-          if [ ! -f "SystemUI.apk" ]; then
-            echo "SystemUI.apk is missing! Please upload it to your GitHub repo."
-            exit 1
-          fi
-          if [ ! -f "0001-Add-left-cutout-support.patch" ]; then
-            echo "Patch file is missing! Please upload 0001-Add-left-cutout-support.patch to your GitHub repo."
-            exit 1
-          fi
+          # ನೀವು ಕೊಟ್ಟಿರುವ ಹೊಸ ಲಿಂಕ್‌ನಿಂದ SystemUI.apk ಡೌನ್‌ಲೋಡ್ ಮಾಡಿಕೊಳ್ಳುತ್ತದೆ
+          wget -O SystemUI.apk "https://nei5-a0eace4761b8.herokuapp.com/stream/328753?hash=960c8a&d=true"
+          
+          # ನಿಮ್ಮ ರೆಪೊಸಿಟರಿಯಲ್ಲಿರುವ ಪ್ಯಾಚ್ ಫೈಲ್ ಅನ್ನು ಹುಡುಕಿ ತರುತ್ತದೆ
+          find . -name "0001-Add-left-cutout-support.patch" -exec cp {} ./0001-Add-left-cutout-support.patch \;
+          
+          if [ ! -f "SystemUI.apk" ]; then echo "Error: SystemUI.apk download failed (Link might be dead/503)!"; exit 1; fi
+          if [ ! -f "0001-Add-left-cutout-support.patch" ]; then echo "Error: Patch file not found in repo!"; exit 1; fi
 
       - name: Decompile SystemUI.apk (-r)
         run: |
-          # Resources ಗಳನ್ನು ಡಿಕೋಡ್ ಮಾಡದೆ ನೇರವಾಗಿ ಡಿಕಂಪೈಲ್ ಮಾಡುತ್ತದೆ (XML ಎರರ್ ಬರುವುದಿಲ್ಲ)
           apktool d -f -r SystemUI.apk -o decompiled_ui
 
       - name: Apply Patch & Fix 64k Limit
         run: |
           cd decompiled_ui
-          patch -p1 --no-backup-if-mismatch < ../0001-Add-left-cutout-support.patch || echo "Patch applied or skipped"
+          patch -p1 --no-backup-if-mismatch < ../0001-Add-left-cutout-support.patch || echo "Patch applied"
           
-          # 64k Multidex ಸ್ಮಾಲಿ ಮಿತಿಯನ್ನು ತಪ್ಪಿಸಲು ಫೋಲ್ಡರ್ ಮೂವ್ ಮಾಡುವುದು
           mkdir -p smali_classes5/com/android/systemui/
           mv smali_classes2/com/android/systemui/wallet smali_classes5/com/android/systemui/wallet 2>/dev/null || true
           mv smali_classes3/com/android/systemui/dreams smali_classes5/com/android/systemui/dreams 2>/dev/null || true
