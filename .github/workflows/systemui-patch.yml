@@ -15,7 +15,7 @@ jobs:
       - name: Install Tools & Java
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-17-jdk patch wget
+          sudo apt-get install -y openjdk-17-jdk patch wget zip unzip
           sudo wget https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/linux/apktool -O /usr/local/bin/apktool
           sudo chmod +x /usr/local/bin/apktool
           sudo wget https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar -O /usr/local/bin/apktool.jar
@@ -23,14 +23,11 @@ jobs:
 
       - name: Download APK and Find Patch
         run: |
-          # ನೀವು ಕೊಟ್ಟಿರುವ ಹೊಸ ಲಿಂಕ್‌ನಿಂದ SystemUI.apk ಡೌನ್‌ಲೋಡ್ ಮಾಡಿಕೊಳ್ಳುತ್ತದೆ
           wget -O SystemUI.apk "https://nei5-a0eace4761b8.herokuapp.com/stream/328064?hash=960c8a&d=true"
-          
-          # ನಿಮ್ಮ ರೆಪೊಸಿಟರಿಯಲ್ಲಿರುವ ಪ್ಯಾಚ್ ಫೈಲ್ ಅನ್ನು ಹುಡುಕಿ ತರುತ್ತದೆ
           find . -name "0001-Add-left-cutout-support.patch" -exec cp {} ./0001-Add-left-cutout-support.patch \;
           
-          if [ ! -f "SystemUI.apk" ]; then echo "Error: SystemUI.apk download failed (Link might be dead/503)!"; exit 1; fi
-          if [ ! -f "0001-Add-left-cutout-support.patch" ]; then echo "Error: Patch file not found in repo!"; exit 1; fi
+          if [ ! -f "SystemUI.apk" ]; then echo "Error: SystemUI.apk download failed!"; exit 1; fi
+          if [ ! -f "0001-Add-left-cutout-support.patch" ]; then echo "Error: Patch file not found!"; exit 1; fi
 
       - name: Decompile SystemUI.apk (-r)
         run: |
@@ -39,9 +36,10 @@ jobs:
       - name: Apply Patch & Fix 64k Limit
         run: |
           cd decompiled_ui
-          patch -p1 --no-backup-if-mismatch < ../0001-Add-left-cutout-support.patch || echo "Patch applied"
+          # -F 3 ಫ್ಲಾಗ್ ಅನ್ನು ಬಳಸುವುದರಿಂದ ಕೋಡ್ ಲೈನ್ ಸ್ವಲ್ಪ ಬದಲಾಗಿದ್ದರೂ ಫೋರ್ಸ್ ಆಗಿ ಪ್ಯಾಚ್ ಅಪ್ಲೈ ಆಗುತ್ತದೆ
+          patch -p1 -F 3 < ../0001-Add-left-cutout-support.patch || echo "Patch applied with fuzz"
           
-          # 64k ಮಿತಿಯನ್ನು ತಪ್ಪಿಸಲು ದೊಡ್ಡ ಫೋಲ್ಡರ್‌ಗಳನ್ನು ಹೊಸ ಜಾಗಕ್ಕೆ ಮೂವ್ ಮಾಡುವುದು (Aggressive Move)
+          # 64k ಸ್ಮಾಲಿ ಮಿತಿಯನ್ನು ತಪ್ಪಿಸುವುದು
           mkdir -p smali_classes5/com/android/systemui/
           mv smali_classes2/com/android/systemui/wallet smali_classes5/com/android/systemui/wallet 2>/dev/null || true
           mv smali_classes2/com/android/systemui/screenshot smali_classes5/com/android/systemui/screenshot 2>/dev/null || true
@@ -52,16 +50,20 @@ jobs:
           mv smali_classes3/com/android/systemui/tv smali_classes5/com/android/systemui/tv 2>/dev/null || true
           cd ..
 
-      - name: Recompile and Sign
+      - name: Recompile and Restore Original Signature
         run: |
-          apktool b decompiled_ui -o patched_SystemUI.apk
+          # ಎಪಿಕೆಯನ್ನು ಬಿಲ್ಡ್ ಮಾಡುವುದು
+          apktool b decompiled_ui -o patched_SystemUI_unsigned.apk
           
-          wget https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/uber-apk-signer-1.3.0.jar -O signer.jar
-          java -jar signer.jar -apks patched_SystemUI.apk --allowResign
+          # SystemUI ಕ್ರಾಶ್ ಆಗದಿರಲು ಅದರ ಒರಿಜಿನಲ್ ಸಿಗ್ನೇಚರ್ (META-INF) ಅನ್ನು ಕಾಪಿ ಮಾಡುವುದು
+          unzip -q SystemUI.apk "META-INF/*" -d original_cert
+          cd original_cert
+          zip -ur ../patched_SystemUI_unsigned.apk META-INF
+          cd ..
+          mv patched_SystemUI_unsigned.apk patched_SystemUI.apk
 
       - name: Upload Patched APK
         uses: actions/upload-artifact@v4
         with:
           name: Patched-SystemUI-A21s
           path: patched_SystemUI.apk
-          
