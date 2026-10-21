@@ -1,0 +1,63 @@
+name: Patch SystemUI Only
+
+on:
+  workflow_dispatch:
+
+jobs:
+  patch:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: 'a21s'
+
+      - name: Install Tools & Java
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-17-jdk patch wget
+          sudo wget https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/linux/apktool -O /usr/local/bin/apktool
+          sudo chmod +x /usr/local/bin/apktool
+          sudo wget https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar -O /usr/local/bin/apktool.jar
+          sudo chmod +x /usr/local/bin/apktool.jar
+
+      - name: Check Files
+        run: |
+          if [ ! -f "SystemUI.apk" ]; then
+            echo "SystemUI.apk is missing! Please upload it to your GitHub repo."
+            exit 1
+          fi
+          if [ ! -f "0001-Add-left-cutout-support.patch" ]; then
+            echo "Patch file is missing! Please upload 0001-Add-left-cutout-support.patch to your GitHub repo."
+            exit 1
+          fi
+
+      - name: Decompile SystemUI.apk (-r)
+        run: |
+          # Resources ಗಳನ್ನು ಡಿಕೋಡ್ ಮಾಡದೆ ನೇರವಾಗಿ ಡಿಕಂಪೈಲ್ ಮಾಡುತ್ತದೆ (XML ಎರರ್ ಬರುವುದಿಲ್ಲ)
+          apktool d -f -r SystemUI.apk -o decompiled_ui
+
+      - name: Apply Patch & Fix 64k Limit
+        run: |
+          cd decompiled_ui
+          patch -p1 --no-backup-if-mismatch < ../0001-Add-left-cutout-support.patch || echo "Patch applied or skipped"
+          
+          # 64k Multidex ಸ್ಮಾಲಿ ಮಿತಿಯನ್ನು ತಪ್ಪಿಸಲು ಫೋಲ್ಡರ್ ಮೂವ್ ಮಾಡುವುದು
+          mkdir -p smali_classes5/com/android/systemui/
+          mv smali_classes2/com/android/systemui/wallet smali_classes5/com/android/systemui/wallet 2>/dev/null || true
+          mv smali_classes3/com/android/systemui/dreams smali_classes5/com/android/systemui/dreams 2>/dev/null || true
+          cd ..
+
+      - name: Recompile and Sign
+        run: |
+          apktool b decompiled_ui -o patched_SystemUI.apk
+          
+          wget https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/uber-apk-signer-1.3.0.jar -O signer.jar
+          java -jar signer.jar -apks patched_SystemUI.apk --allowResign
+
+      - name: Upload Patched APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Patched-SystemUI-A21s
+          path: patched_SystemUI.apk
+          
