@@ -48,22 +48,31 @@ jobs:
           mv smali_classes3/com/android/systemui/tv smali_classes5/com/android/systemui/tv 2>/dev/null || true
           cd ..
 
-      - name: Inject Dex into Original APK (Fix Size Issue)
+      - name: Inject Dex and Resign (Fix Size & Signature)
         run: |
-          # 1. ಟೆಂಪರರಿಯಾಗಿ ಬಿಲ್ಡ್ ಮಾಡಿ ಕೇವಲ dex ಫೈಲ್‌ಗಳನ್ನು ಮಾತ್ರ ಹೊರತೆಗೆಯುವುದು
+          # 1. ಟೆಂಪರರಿಯಾಗಿ ಬಿಲ್ಡ್ ಮಾಡಿ ಹೊಸ dex ಫೈಲ್‌ಗಳನ್ನು ಹೊರತೆಗೆಯುವುದು
           apktool b decompiled_ui -o temp_build.apk
           unzip -q temp_build.apk "*.dex" -d new_dexes
           
-          # 2. ನಿಮ್ಮ ಒರಿಜಿನಲ್ 89MB ಎಪಿಕೆಯನ್ನು ಕಾಪಿ ಮಾಡುವುದು
-          cp SystemUI.apk patched_SystemUI.apk
+          # 2. ಒರಿಜಿನಲ್ ಎಪಿಕೆಯನ್ನು ಕಾಪಿ ಮಾಡುವುದು
+          cp SystemUI.apk patched_SystemUI_unsigned.apk
           
-          # 3. ಕಂಪ್ರೆಸ್ ಮಾಡದೆ (-0 ಫ್ಲಾಗ್) ಹೊಸ dex ಫೈಲ್‌ಗಳನ್ನು ಒರಿಜಿನಲ್ ಎಪಿಕೆಗೆ ಸೇರಿಸುವುದು
+          # 3. ಹಳೆಯ ಒಡೆದುಹೋದ ಸಿಗ್ನೇಚರ್ (META-INF) ಅನ್ನು ಡಿಲೀಟ್ ಮಾಡುವುದು
+          zip -d patched_SystemUI_unsigned.apk "META-INF/*" || true
+          
+          # 4. ಕಂಪ್ರೆಸ್ ಮಾಡದೆ (-0) ಹೊಸ dex ಫೈಲ್‌ಗಳನ್ನು ಎಪಿಕೆಗೆ ಸೇರಿಸುವುದು
           cd new_dexes
-          zip -0 -u ../patched_SystemUI.apk *.dex
+          zip -0 -u ../patched_SystemUI_unsigned.apk *.dex
           cd ..
+          
+          # 5. ಹೊಸದಾಗಿ ವ್ಯಾಲಿಡ್ ಸಿಗ್ನೇಚರ್ ಹಾಕುವುದು
+          wget https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/uber-apk-signer-1.3.0.jar -O signer.jar
+          java -jar signer.jar -apks patched_SystemUI_unsigned.apk -o final_out
+          mv final_out/*-aligned-debugSigned.apk patched_SystemUI.apk
 
       - name: Upload Patched APK
         uses: actions/upload-artifact@v4
         with:
           name: Patched-SystemUI-A21s
           path: patched_SystemUI.apk
+          
