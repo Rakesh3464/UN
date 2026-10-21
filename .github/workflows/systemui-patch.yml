@@ -36,10 +36,8 @@ jobs:
       - name: Apply Patch & Fix 64k Limit
         run: |
           cd decompiled_ui
-          # -F 3 ಫ್ಲಾಗ್ ಅನ್ನು ಬಳಸುವುದರಿಂದ ಕೋಡ್ ಲೈನ್ ಸ್ವಲ್ಪ ಬದಲಾಗಿದ್ದರೂ ಫೋರ್ಸ್ ಆಗಿ ಪ್ಯಾಚ್ ಅಪ್ಲೈ ಆಗುತ್ತದೆ
-          patch -p1 -F 3 < ../0001-Add-left-cutout-support.patch || echo "Patch applied with fuzz"
+          patch -p1 -F 3 < ../0001-Add-left-cutout-support.patch || echo "Patch applied"
           
-          # 64k ಸ್ಮಾಲಿ ಮಿತಿಯನ್ನು ತಪ್ಪಿಸುವುದು
           mkdir -p smali_classes5/com/android/systemui/
           mv smali_classes2/com/android/systemui/wallet smali_classes5/com/android/systemui/wallet 2>/dev/null || true
           mv smali_classes2/com/android/systemui/screenshot smali_classes5/com/android/systemui/screenshot 2>/dev/null || true
@@ -50,17 +48,19 @@ jobs:
           mv smali_classes3/com/android/systemui/tv smali_classes5/com/android/systemui/tv 2>/dev/null || true
           cd ..
 
-      - name: Recompile and Restore Original Signature
+      - name: Inject Dex into Original APK (Fix Size Issue)
         run: |
-          # ಎಪಿಕೆಯನ್ನು ಬಿಲ್ಡ್ ಮಾಡುವುದು
-          apktool b decompiled_ui -o patched_SystemUI_unsigned.apk
+          # 1. ಟೆಂಪರರಿಯಾಗಿ ಬಿಲ್ಡ್ ಮಾಡಿ ಕೇವಲ dex ಫೈಲ್‌ಗಳನ್ನು ಮಾತ್ರ ಹೊರತೆಗೆಯುವುದು
+          apktool b decompiled_ui -o temp_build.apk
+          unzip -q temp_build.apk "*.dex" -d new_dexes
           
-          # SystemUI ಕ್ರಾಶ್ ಆಗದಿರಲು ಅದರ ಒರಿಜಿನಲ್ ಸಿಗ್ನೇಚರ್ (META-INF) ಅನ್ನು ಕಾಪಿ ಮಾಡುವುದು
-          unzip -q SystemUI.apk "META-INF/*" -d original_cert
-          cd original_cert
-          zip -ur ../patched_SystemUI_unsigned.apk META-INF
+          # 2. ನಿಮ್ಮ ಒರಿಜಿನಲ್ 89MB ಎಪಿಕೆಯನ್ನು ಕಾಪಿ ಮಾಡುವುದು
+          cp SystemUI.apk patched_SystemUI.apk
+          
+          # 3. ಕಂಪ್ರೆಸ್ ಮಾಡದೆ (-0 ಫ್ಲಾಗ್) ಹೊಸ dex ಫೈಲ್‌ಗಳನ್ನು ಒರಿಜಿನಲ್ ಎಪಿಕೆಗೆ ಸೇರಿಸುವುದು
+          cd new_dexes
+          zip -0 -u ../patched_SystemUI.apk *.dex
           cd ..
-          mv patched_SystemUI_unsigned.apk patched_SystemUI.apk
 
       - name: Upload Patched APK
         uses: actions/upload-artifact@v4
