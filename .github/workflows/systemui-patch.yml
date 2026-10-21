@@ -41,9 +41,15 @@ jobs:
           cd decompiled_ui
           patch -p1 --no-backup-if-mismatch < ../0001-Add-left-cutout-support.patch || echo "Patch applied"
           
+          # 64k ಮಿತಿಯನ್ನು ತಪ್ಪಿಸಲು ದೊಡ್ಡ ಫೋಲ್ಡರ್‌ಗಳನ್ನು ಹೊಸ ಜಾಗಕ್ಕೆ ಮೂವ್ ಮಾಡುವುದು (Aggressive Move)
           mkdir -p smali_classes5/com/android/systemui/
           mv smali_classes2/com/android/systemui/wallet smali_classes5/com/android/systemui/wallet 2>/dev/null || true
+          mv smali_classes2/com/android/systemui/screenshot smali_classes5/com/android/systemui/screenshot 2>/dev/null || true
           mv smali_classes3/com/android/systemui/dreams smali_classes5/com/android/systemui/dreams 2>/dev/null || true
+          mv smali_classes3/com/android/systemui/controls smali_classes5/com/android/systemui/controls 2>/dev/null || true
+          mv smali_classes3/com/android/systemui/media smali_classes5/com/android/systemui/media 2>/dev/null || true
+          mv smali_classes3/com/android/systemui/recents smali_classes5/com/android/systemui/recents 2>/dev/null || true
+          mv smali_classes3/com/android/systemui/tv smali_classes5/com/android/systemui/tv 2>/dev/null || true
           cd ..
 
       - name: Recompile and Sign
